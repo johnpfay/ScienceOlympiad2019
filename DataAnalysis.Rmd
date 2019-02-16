@@ -26,8 +26,9 @@ trial7 <- read_csv('./Data/Raw/Box2_9Feb1000.csv')
 tidyTable <- function (table,TrialName){
   colnames(table) <- c("Time","Temp")
   table <- table %>% 
-    mutate(Trial = TrialName) %>% 
-    mutate(InitialT = min(table$Temp))
+    mutate(TName = TrialName) %>% 
+    mutate(InitialT = max(table$Temp)) %>% 
+    mutate(Trial = paste0(TrialName,' (',min(table$Temp),"°C)"))
   return (table)
 }
 
@@ -42,42 +43,12 @@ trial7 <- tidyTable(trial7,"T7")
 #Combine data
 trials <- rbind(trial1, trial2, trial3, trial4, trial5, trial6, trial7)
 
-
 #Remove trial tibbles
 remove(trial1, trial2, trial3, trial4, trial5, trial6, trial7)
 
 #Write to csv
 write.csv(trials,"./Data/Processed/AllTrials.csv",row.names = FALSE)
 
-```
-
-```{r}
-#Convert column names
-colnames(trial1) <- c("Time","Temp")
-colnames(trial2) <- c("Time","Temp")
-colnames(trial3) <- c("Time","Temp")
-colnames(trial4) <- c("Time","Temp")
-colnames(trial5) <- c("Time","Temp")
-colnames(trial6) <- c("Time","Temp")
-colnames(trial7) <- c("Time","Temp")
-
-#Add trial column
-trial1 <- trial1 %>% mutate(Trial = "T1")
-trial2 <- trial2 %>% mutate(Trial = "T2")
-trial3 <- trial3 %>% mutate(Trial = "T3")
-trial4 <- trial4 %>% mutate(Trial = "T4")
-trial5 <- trial5 %>% mutate(Trial = "T5")
-trial6 <- trial6 %>% mutate(Trial = "T6")
-trial7 <- trial6 %>% mutate(Trial = "T7")
-
-#Add initialT column
-trial1 <- trial1 %>% mutate(initialT = min(trial1$Temp))
-trial2 <- trial2 %>% mutate(initialT = min(trial2$Temp))
-trial3 <- trial3 %>% mutate(initialT = min(trial2$Temp))
-trial4 <- trial4 %>% mutate(initialT = min(trial3$Temp))
-trial5 <- trial5 %>% mutate(initialT = min(trial4$Temp))
-trial6 <- trial6 %>% mutate(initialT = min(trial5$Temp))
-trial7 <- trial6 %>% mutate(initialT = min(trial6$Temp))
 ```
 
 ##Extract a subset of points
@@ -92,24 +63,48 @@ write.csv(trialsX,"./Data/Processed/AllTrials_10.csv",row.names = FALSE)
 
 ##Plotting the data
 ```{r Plot All Trials on one plot}
-p = ggplot(trialsX, aes(x=Time,y=Temp,color=as.factor(initialT))) + 
+p = ggplot(trialsX, aes(x=Time,y=Temp,color=as.factor(Trial))) + 
   geom_line() + 
   geom_point(size=4) + 
   ylab('Temperature (°C)') +
   xlab('Time (minutes)') +
   xlab("Elapsed Time (min)") + 
   ylab("Internal Beaker Water Temp (°C)") + 
+  labs(col="Trial (Initial Temp.)") + 
+  ggtitle("Internal Beaker Temp. vs. Elapsed Time",
+        subtitle = "Team: Voyager Academy\nMembers: Amelia Fay & Eisley Jantz") +
   scale_y_continuous(breaks = seq(56,74,2),limits = c(56,74)) +
-  theme(legend.position = c(0.8,0.7),
+  theme(legend.position = c(0.83,0.73),
+        legend.title = element_text("Iniital Temp. (C)"),
         plot.title = element_text(hjust=0.5,vjust=0.5,face='bold'))
 p
+ggsave("AllTrials.jpg",plot = p,path = './Figures')
 ```
 
-##Plotting the data
+##Individual plots
 ```{r Plot Graphs}
-ggplot(trials, aes(x=Time,y=Temp,color=Trial)) + 
-  geom_smooth() + 
-  geom_point(data=trialsX,aes(x=Time,y=Temp,shape=Trial,color=Trial),size=4)
+for (TrialName in unique(trialsX$Trial)) {
+  #Isolate the trial records
+  trialData <- trialsX %>% filter(Trial == TrialName)
+  #Get values
+  TName = first(trialData$TName)
+  InitT = first(trialData$InitialT)
+  figName = paste('./Figures/',TName,".jpg")
+  #Create the title
+  plotTitle <- paste("Internal Beaker Temp. vs. Elapsed Time\nTrial: ",TName, ", Initial Temp: ",InitT, '°C')
+  #Plot
+  ggplot(trialData, aes(x=Time,y=Temp),color='grey')  +
+    geom_line(color='red') + 
+    geom_point(color='red',size=3) +
+    ggtitle(plotTitle,
+            subtitle = "Team: Voyager Academy\nMembers: Amelia Fay & Eisley Jantz") +
+    xlab("Elapsed Time (min)") + 
+    ylab("Internal Beaker Water Temp (°C)") + 
+    scale_y_continuous(breaks = seq(56,74,2),limits = c(56,74)) 
+    #theme(legend.position = c(0.8,0.8),
+    #      plot.title = element_text(hjust=0.5,vjust=-1,face='bold'))
+  ggsave(figName)
+} 
 ```
 
 ## Summarise the data and generate a model
