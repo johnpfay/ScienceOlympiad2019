@@ -108,47 +108,65 @@ for (TrialName in unique(trialsX$Trial)) {
 ```
 
 ## Summarise the data and generate a model
-```{r Summarising the date}
+```{r Summarising the data}
 trial_summary <- trials %>% 
   group_by(Trial) %>% 
   summarise(startT = max(Temp),
             endT = min(Temp)) %>% 
   mutate(TDiff = startT - endT)
 head(trial_summary)
-write.csv(trial_summary, "results.csv")
+write.csv(trial_summary, "./Data/Processed/DataSummary.csv")
 ```
 
 ```{r}
-
-ggplot(trial_summary) + 
-  geom_point(aes(x=startT,y=endT,shape=Trial, color=Trial),size=3) 
-
+#Compute the linear model
 theModel <- lm(endT ~ startT, trial_summary)
+#Tidy the outputs
 theModel.output <- tidy(theModel)
+#Extract model coefficients
 y.intercept = theModel.output$estimate[1]
 slope <- theModel.output$estimate[2]
 
+#Apply the model as a function
 tFun = function(startT) {
   endT = startT * slope + y.intercept
   return(endT)
 }
 
+#Extend function
+xFun <- function(tNum,startT) {
+  tName <-  paste0(tNum," (",startT,"°C)")
+  endT <-  round(startT * slope + y.intercept, 2)
+  TDiff  <-  startT - endT
+  return (list(tName,startT,endT,TDiff,endT))
+}
+
+
 trial_summary <- trial_summary %>% 
-  mutate(expectedTemp = theModel$fitted.values)
+  mutate(expectedTemp = theModel$fitted.values) %>% 
 write.csv(trial_summary,'summary.csv',row.names = FALSE)
+
+
+tSum <-rbind(trial_summary,
+            xFun("T8",68.1),
+            xFun("T9",65.2),
+            xFun("TX",60.2))
 ```
 
 ```{r Plot Fitted Values}
 funcT = paste0('End T = (Start T * ',round(slope,3),') + ',round(y.intercept,3))
 
-ggplot(trial_summary) + 
+ggplot(tSum) + 
   geom_point(aes(x=startT,y=endT, color=Trial),size=3)  + 
   geom_line(aes(x=startT,y=expectedTemp), color='red') +
+  #geom_smooth(method='lm',aes(x=startT,y=expectedTemp)) + 
   xlab("Initial Temperature (°C)") +
   ylab("Ending Temperature (°C)") +
   geom_text(x=67,y=61.5,label=funcT,hjust=0.5) +
-  ggtitle("Ending vs Intial temperature after 25 minutes",
-            subtitle = "Team: Voyager Academy\nMembers: Amelia Fay & Eisley Jantz") 
+  ggtitle("Ending vs Intial Temperature after 25 minutes",
+            subtitle = "Team: Voyager Academy\nMembers: Amelia Fay & Eisley Jantz") + 
+  scale_x_continuous(breaks = seq(60,75,0.5)) +
+  scale_y_continuous(breaks=seq(50,63,0.5))
 
 ```
 
