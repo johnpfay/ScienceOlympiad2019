@@ -1,0 +1,159 @@
+---
+title: "SOData"
+author: "John Fay"
+date: "February 5, 2019"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+## Loading the data
+```{r Load and Merge Raw Data Files}
+getwd()
+library(tidyverse)
+library(modelr)
+library(broom)
+
+#Read in data files
+trial1 <- read_csv('./Data/Raw/Box2_2Feb-1051.csv')
+trial2 <- read_csv('./Data/Raw/Box2_5Feb-804pm.csv')
+trial3 <- read_csv('./Data/Raw/box 2_2fev-1040fix.csv')
+trial4 <- read_csv('./Data/Raw/Box2_6Feb730.csv')
+trial5 <- read_csv('./Data/Raw/Box2_6Feb804.csv')
+trial6 <- read_csv('./Data/Raw/Box2_9Feb930.csv')
+trial7 <- read_csv('./Data/Raw/Box2_9Feb1000.csv')
+
+#functon for tidying tables
+tidyTable <- function (table,TrialName){
+  colnames(table) <- c("Time","Temp")
+  table <- table %>% 
+    mutate(Trial = TrialName) %>% 
+    mutate(InitialT = min(table$Temp))
+  return (table)
+}
+
+trial1 <- tidyTable(trial1,"T1")
+trial2 <- tidyTable(trial2,"T2")
+trial3 <- tidyTable(trial3,"T3")
+trial4 <- tidyTable(trial4,"T4")
+trial5 <- tidyTable(trial5,"T5")
+trial6 <- tidyTable(trial6,"T6")
+trial7 <- tidyTable(trial7,"T7")
+
+#Combine data
+trials <- rbind(trial1, trial2, trial3, trial4, trial5, trial6, trial7)
+
+
+#Remove trial tibbles
+remove(trial1, trial2, trial3, trial4, trial5, trial6, trial7)
+
+#Write to csv
+write.csv(trials,"./Data/Processed/AllTrials.csv",row.names = FALSE)
+
+```
+
+```{r}
+#Convert column names
+colnames(trial1) <- c("Time","Temp")
+colnames(trial2) <- c("Time","Temp")
+colnames(trial3) <- c("Time","Temp")
+colnames(trial4) <- c("Time","Temp")
+colnames(trial5) <- c("Time","Temp")
+colnames(trial6) <- c("Time","Temp")
+colnames(trial7) <- c("Time","Temp")
+
+#Add trial column
+trial1 <- trial1 %>% mutate(Trial = "T1")
+trial2 <- trial2 %>% mutate(Trial = "T2")
+trial3 <- trial3 %>% mutate(Trial = "T3")
+trial4 <- trial4 %>% mutate(Trial = "T4")
+trial5 <- trial5 %>% mutate(Trial = "T5")
+trial6 <- trial6 %>% mutate(Trial = "T6")
+trial7 <- trial6 %>% mutate(Trial = "T7")
+
+#Add initialT column
+trial1 <- trial1 %>% mutate(initialT = min(trial1$Temp))
+trial2 <- trial2 %>% mutate(initialT = min(trial2$Temp))
+trial3 <- trial3 %>% mutate(initialT = min(trial2$Temp))
+trial4 <- trial4 %>% mutate(initialT = min(trial3$Temp))
+trial5 <- trial5 %>% mutate(initialT = min(trial4$Temp))
+trial6 <- trial6 %>% mutate(initialT = min(trial5$Temp))
+trial7 <- trial6 %>% mutate(initialT = min(trial6$Temp))
+```
+
+##Extract a subset of points
+```{r}
+#Extract points for every 2.5 minutes (10 samples)
+trialsX <- trials %>% 
+  filter(Time %in% seq(0,25,2.5))
+
+#Write to csv
+write.csv(trialsX,"./Data/Processed/AllTrials_10.csv",row.names = FALSE)
+```
+
+##Plotting the data
+```{r Plot All Trials on one plot}
+p = ggplot(trialsX, aes(x=Time,y=Temp,color=as.factor(initialT))) + 
+  geom_line() + 
+  geom_point(size=4) + 
+  ylab('Temperature (°C)') +
+  xlab('Time (minutes)') +
+  xlab("Elapsed Time (min)") + 
+  ylab("Internal Beaker Water Temp (°C)") + 
+  scale_y_continuous(breaks = seq(56,74,2),limits = c(56,74)) +
+  theme(legend.position = c(0.8,0.7),
+        plot.title = element_text(hjust=0.5,vjust=0.5,face='bold'))
+p
+```
+
+##Plotting the data
+```{r Plot Graphs}
+ggplot(trials, aes(x=Time,y=Temp,color=Trial)) + 
+  geom_smooth() + 
+  geom_point(data=trialsX,aes(x=Time,y=Temp,shape=Trial,color=Trial),size=4)
+```
+
+## Summarise the data and generate a model
+```{r Summarising the date}
+trial_summary <- trials %>% 
+  group_by(Trial) %>% 
+  summarise(startT = max(Temp),
+            endT = min(Temp)) %>% 
+  mutate(TDiff = startT - endT)
+head(trial_summary)
+write.csv(trial_summary, "results.csv")
+```
+
+```{r}
+
+ggplot(trial_summary) + 
+  geom_point(aes(x=startT,y=endT,shape=Trial, color=Trial),size=3) 
+
+theModel <- lm(endT ~ startT, trial_summary)
+theModel.output <- tidy(theModel)
+y.intercept = theModel.output$estimate[1]
+slope <- theModel.output$estimate[2]
+
+tFun = function(startT) {
+  endT = startT * slope + y.intercept
+  return(endT)
+}
+
+trial_summary <- trial_summary %>% 
+  mutate(expectedTemp = theModel$fitted.values)
+write.csv(trial_summary,'summary.csv',row.names = FALSE)
+```
+
+```{r Plot Fitted Values}
+funcT = paste0('End T = (Start T * ',round(slope,3),') + ',round(y.intercept,3))
+
+ggplot(trial_summary) + 
+  geom_point(aes(x=startT,y=endT, color=Trial),size=3)  + 
+  geom_line(aes(x=startT,y=expectedTemp), color='red') +
+  xlab("Initial Temperature (°C)") +
+  ylab("Ending Temperature (°C)") +
+  geom_text(x=67,y=61.5,label=funcT,hjust=0.5) +
+  ggtitle("Ending vs Intial temperature after 25 minutes",
+            subtitle = "Team: Voyager Academy\nMembers: Amelia Fay & Eisley Jantz") 
+
+```
+
