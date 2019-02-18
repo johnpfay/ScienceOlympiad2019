@@ -21,6 +21,9 @@ trial4 <- read_csv('./Data/Raw/Box2_6Feb730.csv')
 trial5 <- read_csv('./Data/Raw/Box2_6Feb804.csv')
 trial6 <- read_csv('./Data/Raw/Box2_9Feb930.csv')
 trial7 <- read_csv('./Data/Raw/Box2_9Feb1000.csv')
+trial8 <- read_csv('./Data/Raw/Box2_17Feb01.csv')
+trial9 <- read_csv('./Data/Raw/Box2_17Feb02.csv')
+trial10 <- read_csv('./Data/Raw/Box2_17Feb03.csv')
 
 #functon for tidying tables
 tidyTable <- function (table,TrialName){
@@ -39,12 +42,15 @@ trial4 <- tidyTable(trial4,"T4")
 trial5 <- tidyTable(trial5,"T5")
 trial6 <- tidyTable(trial6,"T6")
 trial7 <- tidyTable(trial7,"T7")
+trial8 <- tidyTable(trial8,"T8")
+trial9 <- tidyTable(trial9[,3:4],"T9")
+trial10 <- tidyTable(trial10[,5:6],"T10")
 
 #Combine data
-trials <- rbind(trial1, trial2, trial3, trial4, trial5, trial6, trial7)
+trials <- rbind(trial1, trial2, trial3, trial4, trial5, trial6, trial7, trial8, trial9, trial10)
 
 #Remove trial tibbles
-remove(trial1, trial2, trial3, trial4, trial5, trial6, trial7)
+remove(trial1, trial2, trial3, trial4, trial5, trial6, trial7, trial8, trial9, trial10)
 
 #Write to csv
 write.csv(trials,"./Data/Processed/AllTrials.csv",row.names = FALSE)
@@ -143,7 +149,7 @@ xFun <- function(tNum,startT) {
 
 
 trial_summary <- trial_summary %>% 
-  mutate(expectedTemp = theModel$fitted.values) %>% 
+  mutate(expectedTemp = theModel$fitted.values) 
 write.csv(trial_summary,'summary.csv',row.names = FALSE)
 
 
@@ -156,7 +162,7 @@ tSum <-rbind(trial_summary,
 ```{r Plot Fitted Values}
 funcT = paste0('End T = (Start T * ',round(slope,3),') + ',round(y.intercept,3))
 
-ggplot(tSum) + 
+ggplot(trial_summary) + 
   geom_point(aes(x=startT,y=endT, color=Trial),size=3)  + 
   geom_line(aes(x=startT,y=expectedTemp), color='red') +
   #geom_smooth(method='lm',aes(x=startT,y=expectedTemp)) + 
