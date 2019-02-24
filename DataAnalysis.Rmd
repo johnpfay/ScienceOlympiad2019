@@ -23,7 +23,7 @@ trial6 <- read_csv('./Data/Raw/Box2_9Feb930.csv')
 trial7 <- read_csv('./Data/Raw/Box2_9Feb1000.csv')
 trial8 <- read_csv('./Data/Raw/Box2_17Feb01.csv')
 trial9 <- read_csv('./Data/Raw/Box2_17Feb02.csv')
-trial10 <- read_csv('./Data/Raw/Box2_17Feb03.csv')
+trial0 <- read_csv('./Data/Raw/Box2_17Feb03.csv')
 
 #functon for tidying tables
 tidyTable <- function (table,TrialName){
@@ -31,7 +31,8 @@ tidyTable <- function (table,TrialName){
   table <- table %>% 
     mutate(TName = TrialName) %>% 
     mutate(InitialT = max(table$Temp)) %>% 
-    mutate(Trial = paste0(TrialName,' (',min(table$Temp),"°C)"))
+    mutate(Trial = paste0(TrialName,' (',max(table$Temp),"°C)")) %>% 
+    mutate(TrialX = paste0(TrialName,' (',max(table$Temp),"-",min(table$Temp),"°C)"))
   return (table)
 }
 
@@ -44,13 +45,13 @@ trial6 <- tidyTable(trial6,"T6")
 trial7 <- tidyTable(trial7,"T7")
 trial8 <- tidyTable(trial8,"T8")
 trial9 <- tidyTable(trial9[,3:4],"T9")
-trial10 <- tidyTable(trial10[,5:6],"T10")
+trial0 <- tidyTable(trial0[,5:6],"T0")
 
 #Combine data
-trials <- rbind(trial1, trial2, trial3, trial4, trial5, trial6, trial7, trial8, trial9, trial10)
+trials <- rbind(trial0, trial1, trial2, trial3, trial4, trial5, trial6, trial7, trial8, trial9)
 
 #Remove trial tibbles
-remove(trial1, trial2, trial3, trial4, trial5, trial6, trial7, trial8, trial9, trial10)
+remove(trial1, trial2, trial3, trial4, trial5, trial6, trial7, trial8, trial9, trial0)
 
 #Write to csv
 write.csv(trials,"./Data/Processed/AllTrials.csv",row.names = FALSE)
@@ -69,22 +70,26 @@ write.csv(trialsX,"./Data/Processed/AllTrials_10.csv",row.names = FALSE)
 
 ##Plotting the data
 ```{r Plot All Trials on one plot}
-p = ggplot(trialsX, aes(x=Time,y=Temp,color=as.factor(Trial))) + 
+p = ggplot(trialsX, aes(x=Time,y=Temp,color=as.factor(TrialX))) + 
   geom_line() + 
-  geom_point(size=4) + 
+  geom_point(size=3) + 
   ylab('Temperature (°C)') +
   xlab('Time (minutes)') +
   xlab("Elapsed Time (min)") + 
   ylab("Internal Beaker Water Temp (°C)") + 
-  labs(col="Trial (Initial Temp.)") + 
+  labs(col="Trial (Init.T°-End T°)") + 
   ggtitle("Internal Beaker Temp. vs. Elapsed Time",
-        subtitle = "Team: Voyager Academy\nMembers: Amelia Fay & Eisley Jantz") +
-  scale_y_continuous(breaks = seq(56,74,2),limits = c(56,74)) +
-  theme(legend.position = c(0.83,0.73),
-        legend.title = element_text("Iniital Temp. (C)"),
-        plot.title = element_text(hjust=0.5,vjust=0.5,face='bold'))
+        subtitle = "Team: Voyager Academy B (JV)\nMembers: Amelia Fay & Eisley Jantz") +
+  scale_y_continuous(breaks = seq(54,78,2),limits = c(53,78)) +
+  #scale_color_brewer(type='qual',palette = 'Paired') +
+  theme(legend.position = c(0.87,0.73),
+        legend.text = element_text(size=8),
+        legend.title = element_text("Initial Temp. (°C)"))
 p
-ggsave("AllTrials.jpg",plot = p,path = './Figures')
+ggsave("AllTrials.jpg",
+       width = 8.5, height = 6.5,
+       plot = p,
+       path = './Figures')
 ```
 
 ##Individual plots
@@ -153,10 +158,6 @@ trial_summary <- trial_summary %>%
 write.csv(trial_summary,'summary.csv',row.names = FALSE)
 
 
-tSum <-rbind(trial_summary,
-            xFun("T8",68.1),
-            xFun("T9",65.2),
-            xFun("TX",60.2))
 ```
 
 ```{r Plot Fitted Values}
@@ -164,15 +165,23 @@ funcT = paste0('End T = (Start T * ',round(slope,3),') + ',round(y.intercept,3))
 
 ggplot(trial_summary) + 
   geom_point(aes(x=startT,y=endT, color=Trial),size=3)  + 
-  geom_line(aes(x=startT,y=expectedTemp), color='red') +
-  #geom_smooth(method='lm',aes(x=startT,y=expectedTemp)) + 
+  geom_line(aes(x=startT,y=expectedTemp), color='blue') +
+  #geom_smooth(method='lm',aes(x=startT,y=endT)) + 
   xlab("Initial Temperature (°C)") +
   ylab("Ending Temperature (°C)") +
-  geom_text(x=67,y=61.5,label=funcT,hjust=0.5) +
+  geom_text(x=61.5,y=63,label=funcT,hjust=0,color = 'blue') +
   ggtitle("Ending vs Intial Temperature after 25 minutes",
-            subtitle = "Team: Voyager Academy\nMembers: Amelia Fay & Eisley Jantz") + 
+            subtitle = "Team: Voyager Academy B (JV)\nMembers: Amelia Fay & Eisley Jantz") + 
   scale_x_continuous(breaks = seq(60,75,0.5)) +
-  scale_y_continuous(breaks=seq(50,63,0.5))
+  scale_y_continuous(breaks=seq(50,63,0.5)) +
+  theme(axis.text.x = element_text(angle=45,hjust=1),
+        legend.text = element_text(size=8),
+        legend.position = c(0.85,0.35),
+        legend.title = element_text("Trial (Init °C)"))
+
+ggsave("EndVsInit.jpg",
+       width = 8.5, height = 6.5,
+       path = './Figures')
 
 ```
 
